@@ -1,0 +1,87 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  CUSTOMER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash")
+  role         Role     @default(CUSTOMER)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  createdTickets  Ticket[]  @relation("CreatedTickets")
+  assignedTickets Ticket[]  @relation("AssignedTickets")
+  comments        Comment[]
+
+  @@map("users")
+}
+
+model Ticket {
+  id           String       @id @default(uuid()) @db.Uuid
+  title        String       @db.VarChar(200)
+  description  String
+  priority     Priority     @default(MEDIUM)
+  status       TicketStatus @default(OPEN)
+
+  createdById  String  @db.Uuid
+  assignedToId String? @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  createdBy  User  @relation("CreatedTickets", fields: [createdById], references: [id])
+  assignedTo User? @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  comments   Comment[]
+
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@map("tickets")
+}
+
+model Comment {
+  id       String @id @default(uuid()) @db.Uuid
+  ticketId String @db.Uuid
+  userId   String @db.Uuid
+  message  String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@index([userId])
+  @@map("comments")
+}
